@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimdKafka/SimdKafka.csproj" />
+  <Project Path="tests/SimdKafka.Smoke/SimdKafka.Smoke.csproj" />
+</Solution>
