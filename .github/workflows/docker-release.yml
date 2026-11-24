@@ -65,7 +65,7 @@ jobs:
           mkdir -p "$destination"
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern "$bundle" --pattern SHA256SUMS.txt --dir "$destination"
-          checksum=$(awk -v name="$bundle" '$2 == name {print $1}' "$destination/SHA256SUMS.txt")
+          checksum=$(awk -v name="$bundle" '{sub(/\r$/, "")} $2 == name || $2 == "*" name {print $1}' "$destination/SHA256SUMS.txt")
           if [[ ! $checksum =~ ^[a-fA-F0-9]{64}$ ]]; then
             echo "No unique SHA-256 for $bundle" >&2
             exit 1
