@@ -52,6 +52,14 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 
 可用 `docker buildx imagetools inspect dotnetorgcn/simdkafka:1.0.0` 查看公开镜像的架构清单。 [Docker 多架构构建文档](https://docs.docker.com/build/building/multi-platform/)
 
+## GitHub Actions
+
+- 向 `main` 推送或提交 PR 后，自动构建 .NET 10 Release 并运行 Broker 冒烟测试。
+- 发布正式 GitHub Release 后，镜像流水线从附件读取 `SimdKafka-<版本>-portable.tar.gz` 和 `SHA256SUMS.txt`。它先校验 SHA-256，再分别在原生 amd64 和 ARM64 Runner 上构建并验证建 Topic、消息收发和重建容器后的数据恢复。
+- 两种架构都通过后，流水线将通过验证的镜像推送到 Docker Hub，并生成一个多架构版本标签。已发布的多架构版本会保留原镜像摘要。`latest` 跟随 GitHub 标为 Latest 的正式发行版。
+
+也可以在 Actions 手动运行 **Publish Docker image**，输入已发布的版本标签，例如 `v1.0.0`。默认只构建和测试。从默认分支运行并启用 `publish` 才会推送。Docker Hub 登录使用仓库 Actions Secret `DOCKERHUB_TOKEN`。 [构建与测试](https://github.com/donet-org-cn/SimdKafka/actions/workflows/ci.yml) · [镜像发布](https://github.com/donet-org-cn/SimdKafka/actions/workflows/docker-release.yml)
+
 ## 与 Apache Kafka 镜像参数对照
 
 | 参数 | SimdKafka 行为 |
@@ -78,3 +86,5 @@ The published `latest` and `1.0.0` tags contain Linux amd64 and arm64 variants. 
 The image runs the verified SimdKafka 1.0.0 release on .NET 10 as a non-root user. It accepts one Kafka listener, honors the Kafka-style listener, advertised address, log directory, partition count and auto-creation settings in the table above, and keeps the regular SimdKafka CLI options. Set the advertised address to a host and port that clients can reach, and mount `/var/lib/kafka/data` for persistence.
 
 Clusters use a mounted SimdKafka JSON file and `KAFKA_NODE_ID` for each member. Use the native SimdKafka TLS and SASL settings or PKCS#12 file aliases in the table. See [configuration and security](CONFIGURATION.md) and the [Kafka compatibility matrix](KAFKA_COMPATIBILITY.en.md) for supported features.
+
+GitHub Actions builds and smoke-tests the broker for main and pull requests. Publishing a stable GitHub Release with the portable TAR.GZ and `SHA256SUMS.txt` triggers the Docker workflow. It verifies the archive, runs both variants on native Linux runners, and publishes the tested images under a multi-architecture version tag. `latest` follows the release marked Latest on GitHub. A manual run builds and tests by default. For publication, run it from the default branch with `publish` enabled.
