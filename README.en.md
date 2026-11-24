@@ -10,6 +10,46 @@ It is intended for teams that want a .NET messaging deployment while retaining K
 
 ## Quick start
 
+### Run and test with Docker
+
+Docker selects the matching image for `linux/amd64` or `linux/arm64`. Use `latest` for a quick try, or pin `dotnetorgcn/simdkafka:1.0.0` to deploy a specific version. [Docker Hub images](https://hub.docker.com/r/dotnetorgcn/simdkafka/tags)
+
+```bash
+docker run -d --pull always --name simdkafka \
+  -p 127.0.0.1:9092:9092 \
+  -e KAFKA_LISTENERS=PLAINTEXT://:9092 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
+  -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=false \
+  -v simdkafka-data:/var/lib/kafka/data \
+  dotnetorgcn/simdkafka:latest
+
+docker logs --tail 20 simdkafka
+```
+
+When the log shows `SimdKafka listening`, use the CLI from the Apache Kafka 4.4.0 image to create a topic, produce a record, and read it back. The CLI containers share the broker's network namespace and connect to `127.0.0.1:9092`.
+
+```bash
+docker run --rm --network container:simdkafka \
+  --entrypoint /opt/kafka/bin/kafka-topics.sh apache/kafka:4.4.0 \
+  --bootstrap-server 127.0.0.1:9092 --create --if-not-exists \
+  --topic simdkafka-smoke --partitions 1 --replication-factor 1
+
+printf '%s\n' 'hello-simdkafka' | docker run --rm -i \
+  --network container:simdkafka \
+  --entrypoint /opt/kafka/bin/kafka-console-producer.sh apache/kafka:4.4.0 \
+  --bootstrap-server 127.0.0.1:9092 --topic simdkafka-smoke \
+  --command-property acks=all
+
+docker run --rm --network container:simdkafka \
+  --entrypoint /opt/kafka/bin/kafka-console-consumer.sh apache/kafka:4.4.0 \
+  --bootstrap-server 127.0.0.1:9092 --topic simdkafka-smoke \
+  --partition 0 --offset earliest --max-messages 1 --timeout-ms 15000
+```
+
+Expect `hello-simdkafka`. To check persistence, run `docker restart simdkafka`, wait for the listener, and repeat the consumer command. [Compose and container settings](DOCKER.md#english)
+
+### Run from source
+
 Install the .NET 10 SDK. The following commands start a single broker on `127.0.0.1:9092` and persist data under `./data`.
 
 ```sh

@@ -10,6 +10,46 @@ SimdKafka 是用 **C# 和 .NET 10** 实现的独立消息 Broker，直接在 TCP
 
 ## 快速开始
 
+### Docker 快速部署与测试
+
+Docker 会为 `linux/amd64` 或 `linux/arm64` 自动选择镜像。快速体验用 `latest`，需要固定版本时可换成 `dotnetorgcn/simdkafka:1.0.0`。 [Docker Hub 镜像](https://hub.docker.com/r/dotnetorgcn/simdkafka/tags)
+
+```bash
+docker run -d --pull always --name simdkafka \
+  -p 127.0.0.1:9092:9092 \
+  -e KAFKA_LISTENERS=PLAINTEXT://:9092 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
+  -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=false \
+  -v simdkafka-data:/var/lib/kafka/data \
+  dotnetorgcn/simdkafka:latest
+
+docker logs --tail 20 simdkafka
+```
+
+看到 `SimdKafka listening` 后，用 Apache Kafka 4.4.0 镜像中的 CLI 创建 Topic 并收发消息。CLI 容器共享 Broker 的网络，可以直接连接 `127.0.0.1:9092`。
+
+```bash
+docker run --rm --network container:simdkafka \
+  --entrypoint /opt/kafka/bin/kafka-topics.sh apache/kafka:4.4.0 \
+  --bootstrap-server 127.0.0.1:9092 --create --if-not-exists \
+  --topic simdkafka-smoke --partitions 1 --replication-factor 1
+
+printf '%s\n' 'hello-simdkafka' | docker run --rm -i \
+  --network container:simdkafka \
+  --entrypoint /opt/kafka/bin/kafka-console-producer.sh apache/kafka:4.4.0 \
+  --bootstrap-server 127.0.0.1:9092 --topic simdkafka-smoke \
+  --command-property acks=all
+
+docker run --rm --network container:simdkafka \
+  --entrypoint /opt/kafka/bin/kafka-console-consumer.sh apache/kafka:4.4.0 \
+  --bootstrap-server 127.0.0.1:9092 --topic simdkafka-smoke \
+  --partition 0 --offset earliest --max-messages 1 --timeout-ms 15000
+```
+
+应读到 `hello-simdkafka`。执行 `docker restart simdkafka`，等 Broker 恢复监听后再运行消费命令，验证命名卷中的消息可以读回。 [Compose 与容器参数](DOCKER.md)
+
+### 从源码启动
+
 需要 .NET 10 SDK。以下命令启动单节点 Broker，默认监听 `127.0.0.1:9092`，数据写入 `./data`。
 
 ```sh
